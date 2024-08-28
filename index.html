@@ -7,7 +7,6 @@
     <style>
         body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
         select, button { margin: 10px 0; padding: 5px; width: 200px; }
-        #error { color: red; }
     </style>
 </head>
 <body>
@@ -26,27 +25,14 @@
     <br>
     <button onclick="calculateShade()">Calculate Shade Side</button>
     <p id="result"></p>
-    <p id="error"></p>
     <script>
         let busRoutes = {};
-
         fetch('bus_routes.csv')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.text();
-            })
+            .then(response => response.text())
             .then(data => {
-                console.log("CSV data received:", data.slice(0, 200) + "..."); // Log first 200 characters
                 const rows = data.split('\n').slice(1);
-                console.log(`Number of rows: ${rows.length}`);
-                rows.forEach((row, index) => {
+                rows.forEach(row => {
                     const [route, , sequence, , , , stopName, easting, northing] = row.split(',');
-                    if (!route) {
-                        console.log(`Empty route at row ${index + 2}`);
-                        return;
-                    }
                     if (!busRoutes[route]) {
                         busRoutes[route] = [];
                     }
@@ -57,32 +43,20 @@
                         sequence: parseInt(sequence)
                     });
                 });
-                console.log("Routes processed:", Object.keys(busRoutes));
                 for (let route in busRoutes) {
                     busRoutes[route].sort((a, b) => a.sequence - b.sequence);
                 }
                 populateRouteSelect();
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                document.getElementById('error').textContent = `Error loading data: ${error.message}`;
             });
 
         function populateRouteSelect() {
             const select = document.getElementById('routeSelect');
-            const routes = Object.keys(busRoutes);
-            console.log(`Populating route select with ${routes.length} routes`);
-            if (routes.length === 0) {
-                document.getElementById('error').textContent = "No routes found in the data.";
-                return;
-            }
-            routes.forEach(route => {
+            Object.keys(busRoutes).forEach(route => {
                 const option = document.createElement('option');
                 option.value = route;
                 option.textContent = route;
                 select.appendChild(option);
             });
-            console.log("Route select populated");
         }
 
         document.getElementById('routeSelect').addEventListener('change', function() {
