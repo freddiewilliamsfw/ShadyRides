@@ -1,101 +1,48 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>London Bus Shade Calculator</title>
-    <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-        select, button { margin: 10px 0; padding: 5px; width: 200px; }
-    </style>
-</head>
-<body>
-    <h1>London Bus Shade Calculator</h1>
-    <select id="routeSelect">
-        <option value="">Select a route</option>
-    </select>
-    <br>
-    <select id="startStop">
-        <option value="">Select start stop</option>
-    </select>
-    <br>
-    <select id="endStop">
-        <option value="">Select end stop</option>
-    </select>
-    <br>
-    <button onclick="calculateShade()">Calculate Shade Side</button>
-    <p id="result"></p>
-    <script>
-        let busRoutes = {};
-        fetch('bus_routes.csv')
-            .then(response => response.text())
-            .then(data => {
-                const rows = data.split('\n').slice(1);
-                rows.forEach(row => {
-                    const [route, , sequence, , , , stopName, easting, northing] = row.split(',');
-                    if (!busRoutes[route]) {
-                        busRoutes[route] = [];
-                    }
-                    busRoutes[route].push({ 
-                        name: stopName, 
-                        easting: parseInt(easting), 
-                        northing: parseInt(northing),
-                        sequence: parseInt(sequence)
-                    });
-                });
-                for (let route in busRoutes) {
-                    busRoutes[route].sort((a, b) => a.sequence - b.sequence);
-                }
-                populateRouteSelect();
-            });
+/**
+ * Calculates the bearing between two points given their easting and northing coordinates.
+ * @param {number} easting1 - Easting of the first point
+ * @param {number} northing1 - Northing of the first point
+ * @param {number} easting2 - Easting of the second point
+ * @param {number} northing2 - Northing of the second point
+ * @return {number} Bearing in degrees (0-360)
+ * @customfunction
+ */
+function calculateBearing(easting1, northing1, easting2, northing2) {
+  // Calculate differences in coordinates
+  const deltaE = easting2 - easting1;
+  const deltaN = northing2 - northing1;
+  
+  // Calculate bearing
+  let bearing = Math.atan2(deltaE, deltaN) * 180 / Math.PI;
+  
+  // Normalize to 0-360 degrees
+  bearing = (bearing + 360) % 360;
+  
+  return bearing;
+}
 
-        function populateRouteSelect() {
-            const select = document.getElementById('routeSelect');
-            Object.keys(busRoutes).forEach(route => {
-                const option = document.createElement('option');
-                option.value = route;
-                option.textContent = route;
-                select.appendChild(option);
-            });
-        }
+/**
+ * Provides a cardinal direction based on the bearing.
+ * @param {number} bearing - Bearing in degrees
+ * @return {string} Cardinal direction
+ * @customfunction
+ */
+function getCardinalDirection(bearing) {
+  const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+  return directions[Math.round(bearing / 45) % 8];
+}
 
-        document.getElementById('routeSelect').addEventListener('change', function() {
-            const stops = busRoutes[this.value] || [];
-            const startSelect = document.getElementById('startStop');
-            const endSelect = document.getElementById('endStop');
-            startSelect.innerHTML = '<option value="">Select start stop</option>';
-            endSelect.innerHTML = '<option value="">Select end stop</option>';
-            stops.forEach((stop, index) => {
-                const option = document.createElement('option');
-                option.value = index;
-                option.textContent = stop.name;
-                startSelect.appendChild(option.cloneNode(true));
-                endSelect.appendChild(option);
-            });
-        });
-
-        function calculateShade() {
-            const route = document.getElementById('routeSelect').value;
-            const startIndex = document.getElementById('startStop').value;
-            const endIndex = document.getElementById('endStop').value;
-
-            if (!route || startIndex === '' || endIndex === '') {
-                alert('Please select a route and both stops.');
-                return;
-            }
-
-            const startStop = busRoutes[route][startIndex];
-            const endStop = busRoutes[route][endIndex];
-
-            const direction = Math.atan2(endStop.northing - startStop.northing, endStop.easting - startStop.easting) * 180 / Math.PI;
-            
-            // Simplified sun position (always assume sun is in the south)
-            const sunAzimuth = 180;
-            const diff = (direction - sunAzimuth + 360) % 360;
-            const shadeSide = diff >= 0 && diff < 180 ? 'left' : 'right';
-
-            document.getElementById('result').textContent = `For the most shade, sit on the ${shadeSide} side of the bus.`;
-        }
-    </script>
-</body>
-</html>
+/**
+ * Calculates the bearing and provides a description between two points.
+ * @param {number} easting1 - Easting of the first point
+ * @param {number} northing1 - Northing of the first point
+ * @param {number} easting2 - Easting of the second point
+ * @param {number} northing2 - Northing of the second point
+ * @return {string} Description of the bearing
+ * @customfunction
+ */
+function describeBearing(easting1, northing1, easting2, northing2) {
+  const bearing = calculateBearing(easting1, northing1, easting2, northing2);
+  const direction = getCardinalDirection(bearing);
+  return `Bearing: ${bearing.toFixed(2)}° (${direction})`;
+}
