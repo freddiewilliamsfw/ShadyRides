@@ -82,7 +82,7 @@
             const endStop = busRoutes[route][endIndex];
 
             const direction = Math.atan2(endStop.northing - startStop.northing, endStop.easting - startStop.easting) * 180 / Math.PI;
-
+            
             // Simplified sun position (always assume sun is in the south)
             const sunAzimuth = 180;
 
