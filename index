@@ -1,0 +1,95 @@
+import csv
+import datetime
+import math
+from typing import Tuple, List
+
+class BusStop:
+    def __init__(self, stop_code: str, name: str, easting: int, northing: int):
+        self.stop_code = stop_code
+        self.name = name
+        self.easting = easting
+        self.northing = northing
+
+class BusRoute:
+    def __init__(self, route_number: str):
+        self.route_number = route_number
+        self.stops: List[BusStop] = []
+
+    def add_stop(self, stop: BusStop):
+        self.stops.append(stop)
+
+    def get_stop_coordinates(self, stop_name: str) -> Tuple[int, int]:
+        for stop in self.stops:
+            if stop.name == stop_name:
+                return stop.easting, stop.northing
+        return 0, 0  # Return default if stop not found
+
+def load_bus_routes(csv_file: str) -> dict:
+    routes = {}
+    with open(csv_file, 'r') as file:
+        csv_reader = csv.DictReader(file)
+        for row in csv_reader:
+            route_number = row['Route']
+            if route_number not in routes:
+                routes[route_number] = BusRoute(route_number)
+            
+            stop = BusStop(
+                row['Bus_Stop_Code'],
+                row['Stop_Name'],
+                int(row['Location_Easting']),
+                int(row['Location_Northing'])
+            )
+            routes[route_number].add_stop(stop)
+    return routes
+
+def calculate_sun_position(date_time: datetime.datetime, easting: int, northing: int) -> Tuple[float, float]:
+    # This would be a complex calculation in a real app
+    # For now, we'll return a dummy value
+    return 180, 45  # Azimuth, Elevation
+
+def determine_bus_direction(start: Tuple[int, int], end: Tuple[int, int]) -> float:
+    dx = end[0] - start[0]
+    dy = end[1] - start[1]
+    rads = math.atan2(dy, dx)
+    return math.degrees(rads) % 360
+
+def calculate_shade_side(bus_direction: float, sun_azimuth: float) -> str:
+    diff = (bus_direction - sun_azimuth + 360) % 360
+    return "left" if 0 <= diff < 180 else "right"
+
+def main():
+    print("London Bus Shade App")
+    
+    routes = load_bus_routes('bus_routes.csv')
+    
+    route_number = input("Enter bus route number: ")
+    if route_number not in routes:
+        print("Route not found.")
+        return
+    
+    route = routes[route_number]
+    
+    print("Available stops:")
+    for i, stop in enumerate(route.stops):
+        print(f"{i+1}. {stop.name}")
+    
+    start_index = int(input("Enter starting stop number: ")) - 1
+    end_index = int(input("Enter ending stop number: ")) - 1
+    
+    start_stop = route.stops[start_index]
+    end_stop = route.stops[end_index]
+    
+    current_time = datetime.datetime.now()
+    sun_position = calculate_sun_position(current_time, start_stop.easting, start_stop.northing)
+    
+    bus_direction = determine_bus_direction(
+        (start_stop.easting, start_stop.northing),
+        (end_stop.easting, end_stop.northing)
+    )
+    
+    shade_side = calculate_shade_side(bus_direction, sun_position[0])
+    
+    print(f"For the most shade, sit on the {shade_side} side of the bus.")
+
+if __name__ == "__main__":
+    main()
