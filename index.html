@@ -34,8 +34,30 @@
         }
         select, button {
             margin: 10px 0;
-            padding: 5px;
-            width: 200px;
+            padding: 5px 10px;
+            width: 220px;
+            height: 40px;
+            background-image: url('button.png');
+            background-size: cover;
+            background-repeat: no-repeat;
+            border: none;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            text-align-last: center;
+        }
+        select::-ms-expand {
+            display: none;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+        }
+        #error {
+            color: red;
         }
     </style>
 </head>
@@ -44,27 +66,32 @@
         <img src="srlogo.png" alt="Shady Rides Logo" class="logo">
     </div>
     <div class="content">
+        <h1>Shady Rides</h1>
+        <p>Find the shady side of your bus journey in London!</p>
+        
         <select id="routeSelect">
             <option value="">Select a route</option>
         </select>
-        <br>
+        
         <select id="runSelect" style="display: none;">
             <option value="">Select a direction</option>
         </select>
-        <br>
+        
         <select id="startStop" style="display: none;">
             <option value="">Select start stop</option>
         </select>
-        <br>
+        
         <select id="endStop" style="display: none;">
             <option value="">Select end stop</option>
         </select>
-        <br>
+        
         <button onclick="calculateShade()" style="display: none;">Calculate Shade Side</button>
         <p id="result"></p>
         <p id="direction"></p>
+        <p id="error"></p>
     </div>
     <script>
+        // The JavaScript remains the same as in the previous version
         let busRoutes = {};
 
         function calculateBearing(startEasting, startNorthing, endEasting, endNorthing) {
@@ -90,7 +117,12 @@
         }
 
         fetch('bus_routes.csv')
-            .then(response => response.text())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.text();
+            })
             .then(data => {
                 const rows = data.split('\n').slice(1);
                 rows.forEach(row => {
@@ -118,6 +150,10 @@
                     }
                 }
                 populateRouteSelect();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('error').textContent = 'Error loading bus routes. Please try again later.';
             });
 
         function populateRouteSelect() {
@@ -134,7 +170,7 @@
             const runSelect = document.getElementById('runSelect');
             runSelect.innerHTML = '<option value="">Select a run</option>';
             runSelect.style.display = 'block';
-            
+
             const route = busRoutes[this.value];
             Object.keys(route).forEach(run => {
                 const option = document.createElement('option');
