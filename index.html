@@ -15,15 +15,19 @@
         <option value="">Select a route</option>
     </select>
     <br>
-    <select id="startStop">
+    <select id="runSelect" style="display: none;">
+        <option value="">Select a run</option>
+    </select>
+    <br>
+    <select id="startStop" style="display: none;">
         <option value="">Select start stop</option>
     </select>
     <br>
-    <select id="endStop">
+    <select id="endStop" style="display: none;">
         <option value="">Select end stop</option>
     </select>
     <br>
-    <button onclick="calculateShade()">Calculate Shade Side</button>
+    <button onclick="calculateShade()" style="display: none;">Calculate Shade Side</button>
     <p id="result"></p>
     <p id="direction"></p>
     <script>
@@ -33,11 +37,14 @@
             .then(data => {
                 const rows = data.split('\n').slice(1);
                 rows.forEach(row => {
-                    const [route, , sequence, , , , stopName, easting, northing] = row.split(',');
+                    const [route, run, sequence, , , , stopName, easting, northing] = row.split(',');
                     if (!busRoutes[route]) {
-                        busRoutes[route] = [];
+                        busRoutes[route] = {};
                     }
-                    busRoutes[route].push({ 
+                    if (!busRoutes[route][run]) {
+                        busRoutes[route][run] = [];
+                    }
+                    busRoutes[route][run].push({ 
                         name: stopName, 
                         easting: parseInt(easting), 
                         northing: parseInt(northing),
@@ -45,7 +52,9 @@
                     });
                 });
                 for (let route in busRoutes) {
-                    busRoutes[route].sort((a, b) => a.sequence - b.sequence);
+                    for (let run in busRoutes[route]) {
+                        busRoutes[route][run].sort((a, b) => a.sequence - b.sequence);
+                    }
                 }
                 populateRouteSelect();
             });
@@ -61,18 +70,44 @@
         }
 
         document.getElementById('routeSelect').addEventListener('change', function() {
-            const stops = busRoutes[this.value] || [];
+            const runSelect = document.getElementById('runSelect');
+            runSelect.innerHTML = '<option value="">Select a run</option>';
+            runSelect.style.display = 'block';
+            
+            const route = busRoutes[this.value];
+            Object.keys(route).forEach(run => {
+                const option = document.createElement('option');
+                option.value = run;
+                option.textContent = `Run ${run}`;
+                runSelect.appendChild(option);
+            });
+
+            document.getElementById('startStop').style.display = 'none';
+            document.getElementById('endStop').style.display = 'none';
+            document.querySelector('button').style.display = 'none';
+        });
+
+        document.getElementById('runSelect').addEventListener('change', function() {
+            const route = document.getElementById('routeSelect').value;
+            const run = this.value;
+            const stops = busRoutes[route][run] || [];
+
             const startSelect = document.getElementById('startStop');
             const endSelect = document.getElementById('endStop');
             startSelect.innerHTML = '<option value="">Select start stop</option>';
             endSelect.innerHTML = '<option value="">Select end stop</option>';
+
             stops.forEach((stop, index) => {
                 const option = document.createElement('option');
                 option.value = index;
-                option.textContent = stop.name;
+                option.textContent = `${stop.sequence}. ${stop.name}`;
                 startSelect.appendChild(option.cloneNode(true));
                 endSelect.appendChild(option);
             });
+
+            startSelect.style.display = 'block';
+            endSelect.style.display = 'block';
+            document.querySelector('button').style.display = 'block';
         });
 
         function calculateBearing(startEasting, startNorthing, endEasting, endNorthing) {
@@ -102,16 +137,17 @@
 
         function calculateShade() {
             const route = document.getElementById('routeSelect').value;
+            const run = document.getElementById('runSelect').value;
             const startIndex = document.getElementById('startStop').value;
             const endIndex = document.getElementById('endStop').value;
 
-            if (!route || startIndex === '' || endIndex === '') {
-                alert('Please select a route and both stops.');
+            if (!route || !run || startIndex === '' || endIndex === '') {
+                alert('Please select a route, run, and both stops.');
                 return;
             }
 
-            const startStop = busRoutes[route][startIndex];
-            const endStop = busRoutes[route][endIndex];
+            const startStop = busRoutes[route][run][startIndex];
+            const endStop = busRoutes[route][run][endIndex];
 
             const bearing = calculateBearing(startStop.easting, startStop.northing, endStop.easting, endStop.northing);
             const compassDirection = getCompassDirection(bearing);
