@@ -15,10 +15,6 @@
         <option value="">Select a route</option>
     </select>
     <br>
-    <select id="directionSelect" style="display: none;">
-        <option value="">Select direction</option>
-    </select>
-    <br>
     <select id="startStop">
         <option value="">Select start stop</option>
     </select>
@@ -34,6 +30,7 @@
     <script>
         let busRoutes = {};
 
+        // Define the British National Grid and WGS84 projections
         proj4.defs("EPSG:27700", "+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +datum=OSGB36 +units=m +no_defs");
         proj4.defs("EPSG:4326", "+proj=longlat +datum=WGS84 +no_defs");
 
@@ -42,44 +39,18 @@
             return { lat, lon };
         }
 
-        function calculateBearing(lat1, lon1, lat2, lon2) {
-            const toRad = (degree) => degree * (Math.PI / 180);
-            const toDeg = (radian) => radian * (180 / Math.PI);
-
-            const dLon = toRad(lon2 - lon1);
-            const y = Math.sin(dLon) * Math.cos(toRad(lat2));
-            const x = Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) - 
-                      Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(dLon);
-            let bearing = toDeg(Math.atan2(y, x));
-            return (bearing + 360) % 360;
-        }
-
-        function getCompassDirection(bearing) {
-            const directions = ['Northbound', 'Eastbound', 'Southbound', 'Westbound'];
-            return directions[Math.round(bearing / 90) % 4];
-        }
-
         fetch('bus_routes.csv')
             .then(response => response.text())
             .then(data => {
                 const rows = data.split('\n').slice(1);
                 rows.forEach(row => {
-                    const [route, run, sequence, , , , stopName, easting, northing] = row.split(',');
+                    const [route, , , , , , stopName, easting, northing] = row.split(',');
                     if (!busRoutes[route]) {
-                        busRoutes[route] = { 1: [], 2: [] };
+                        busRoutes[route] = [];
                     }
                     const { lat, lon } = convertBNGToLatLon(parseInt(easting), parseInt(northing));
-                    busRoutes[route][run].push({ name: stopName, lat, lon, sequence: parseInt(sequence) });
+                    busRoutes[route].push({ name: stopName, lat, lon });
                 });
-                for (let route in busRoutes) {
-                    for (let run in busRoutes[route]) {
-                        busRoutes[route][run].sort((a, b) => a.sequence - b.sequence);
-                        const firstStop = busRoutes[route][run][0];
-                        const lastStop = busRoutes[route][run][busRoutes[route][run].length - 1];
-                        const bearing = calculateBearing(firstStop.lat, firstStop.lon, lastStop.lat, lastStop.lon);
-                        busRoutes[route][run].direction = getCompassDirection(bearing);
-                    }
-                }
                 populateRouteSelect();
             });
 
@@ -94,24 +65,7 @@
         }
 
         document.getElementById('routeSelect').addEventListener('change', function() {
-            const directionSelect = document.getElementById('directionSelect');
-            directionSelect.style.display = 'block';
-            directionSelect.innerHTML = '<option value="">Select direction</option>';
-            const route = busRoutes[this.value];
-            for (let run in route) {
-                const option = document.createElement('option');
-                option.value = run;
-                option.textContent = route[run].direction;
-                directionSelect.appendChild(option);
-            }
-            document.getElementById('startStop').innerHTML = '<option value="">Select start stop</option>';
-            document.getElementById('endStop').innerHTML = '<option value="">Select end stop</option>';
-        });
-
-        document.getElementById('directionSelect').addEventListener('change', function() {
-            const route = document.getElementById('routeSelect').value;
-            const direction = this.value;
-            const stops = busRoutes[route][direction] || [];
+            const stops = busRoutes[this.value] || [];
             const startSelect = document.getElementById('startStop');
             const endSelect = document.getElementById('endStop');
             startSelect.innerHTML = '<option value="">Select start stop</option>';
@@ -127,24 +81,23 @@
 
         function calculateShade() {
             const route = document.getElementById('routeSelect').value;
-            const direction = document.getElementById('directionSelect').value;
             const startIndex = document.getElementById('startStop').value;
             const endIndex = document.getElementById('endStop').value;
 
-            if (!route || !direction || startIndex === '' || endIndex === '') {
-                alert('Please select a route, direction, and both stops.');
+            if (!route || startIndex === '' || endIndex === '') {
+                alert('Please select a route and both stops.');
                 return;
             }
 
-            const startStop = busRoutes[route][direction][startIndex];
-            const endStop = busRoutes[route][direction][endIndex];
+            const startStop = busRoutes[route][startIndex];
+            const endStop = busRoutes[route][endIndex];
 
-            const bearing = calculateBearing(startStop.lat, startStop.lon, endStop.lat, endStop.lon);
+            const direction = Math.atan2(endStop.lat - startStop.lat, endStop.lon - startStop.lon) * 180 / Math.PI;
             
             // Simplified sun position (always assume sun is in the south)
             const sunAzimuth = 180;
 
-            const diff = (bearing - sunAzimuth + 360) % 360;
+            const diff = (direction - sunAzimuth + 360) % 360;
             const shadeSide = diff >= 0 && diff < 180 ? 'left' : 'right';
 
             document.getElementById('result').textContent = `For the most shade, sit on the ${shadeSide} side of the bus.`;
