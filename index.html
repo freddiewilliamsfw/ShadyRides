@@ -57,7 +57,7 @@
         </select>
         <br>
         <select id="runSelect" style="display: none;">
-            <option value="">Select a run</option>
+            <option value="">Select a direction</option>
         </select>
         <br>
         <select id="startStop" style="display: none;">
@@ -105,86 +105,6 @@
             } else {
                 return 'Westbound';
             }
-        }
-
-        function convertToLatLon(easting, northing) {
-            // This is a simplified conversion and may not be accurate for all of UK
-            // For a more accurate conversion, consider using a library like proj4js
-            const E = easting;
-            const N = northing;
-            const a = 6377563.396;
-            const b = 6356256.909;
-            const F0 = 0.9996012717;
-            const lat0 = 49 * Math.PI / 180;
-            const lon0 = -2 * Math.PI / 180;
-            const N0 = -100000;
-            const E0 = 400000;
-            const e2 = 1 - (b * b) / (a * a);
-            const n = (a - b) / (a + b);
-
-            const lat = lat0;
-            const M = (N - N0) / F0 + lat0;
-
-            let lat1 = M / (a * F0);
-            let lat2;
-            do {
-                lat2 = lat1;
-                const M1 = (1 + n + (5 / 4) * Math.pow(n, 2) + (5 / 4) * Math.pow(n, 3)) * (lat2 - lat0);
-                const M2 = (3 * n + 3 * Math.pow(n, 2) + (21 / 8) * Math.pow(n, 3)) * Math.sin(lat2 - lat0) * Math.cos(lat2 + lat0);
-                const M3 = ((15 / 8) * Math.pow(n, 2) + (15 / 8) * Math.pow(n, 3)) * Math.sin(2 * (lat2 - lat0)) * Math.cos(2 * (lat2 + lat0));
-                const M4 = (35 / 24) * Math.pow(n, 3) * Math.sin(3 * (lat2 - lat0)) * Math.cos(3 * (lat2 + lat0));
-                lat1 = M / (a * F0) + (M1 - M2 + M3 - M4);
-            } while (Math.abs(lat2 - lat1) > 1e-12);
-
-            const cosLat = Math.cos(lat1);
-            const sinLat = Math.sin(lat1);
-            const nu = a * F0 / Math.sqrt(1 - e2 * sinLat * sinLat);
-            const rho = a * F0 * (1 - e2) / Math.pow(1 - e2 * sinLat * sinLat, 1.5);
-            const eta2 = nu / rho - 1;
-
-            const tanLat = Math.tan(lat1);
-            const tan2lat = tanLat * tanLat;
-            const tan4lat = tan2lat * tan2lat;
-            const tan6lat = tan4lat * tan2lat;
-            const secLat = 1 / cosLat;
-            const nu3 = nu * nu * nu;
-            const nu5 = nu3 * nu * nu;
-            const nu7 = nu5 * nu * nu;
-            const VII = tanLat / (2 * rho * nu);
-            const VIII = tanLat / (24 * rho * nu3) * (5 + 3 * tan2lat + eta2 - 9 * tan2lat * eta2);
-            const IX = tanLat / (720 * rho * nu5) * (61 + 90 * tan2lat + 45 * tan4lat);
-            const X = secLat / nu;
-            const XI = secLat / (6 * nu3) * (nu / rho + 2 * tan2lat);
-            const XII = secLat / (120 * nu5) * (5 + 28 * tan2lat + 24 * tan4lat);
-            const XIIA = secLat / (5040 * nu7) * (61 + 662 * tan2lat + 1320 * tan4lat + 720 * tan6lat);
-
-            const dE = (E - E0);
-            const dE2 = dE * dE;
-            const dE3 = dE2 * dE;
-            const dE4 = dE2 * dE2;
-            const dE5 = dE3 * dE2;
-            const dE6 = dE4 * dE2;
-            const dE7 = dE5 * dE2;
-            const lat2 = lat1 - VII * dE2 + VIII * dE4 - IX * dE6;
-            const lon = lon0 + X * dE - XI * dE3 + XII * dE5 - XIIA * dE7;
-
-            return [lat2 * 180 / Math.PI, lon * 180 / Math.PI];
-        }
-
-        function plotRoute(route, run) {
-            if (routeLayer) {
-                map.removeLayer(routeLayer);
-            }
-            const stops = busRoutes[route][run];
-            const latLngs = stops.map(stop => convertToLatLon(stop.easting, stop.northing));
-            routeLayer = L.polyline(latLngs, {color: 'red'}).addTo(map);
-            map.fitBounds(routeLayer.getBounds());
-            
-            stops.forEach((stop, index) => {
-                const [lat, lon] = convertToLatLon(stop.easting, stop.northing);
-                L.marker([lat, lon]).addTo(map)
-                    .bindPopup(`Stop ${index + 1}: ${stop.name}`);
-            });
         }
 
         fetch('bus_routes.csv')
@@ -268,8 +188,6 @@
             startSelect.style.display = 'block';
             endSelect.style.display = 'block';
             document.querySelector('button').style.display = 'block';
-
-            plotRoute(route, run);
         });
 
         function getCompassDirection(bearing) {
