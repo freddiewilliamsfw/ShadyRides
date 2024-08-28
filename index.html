@@ -15,6 +15,10 @@
         <option value="">Select a route</option>
     </select>
     <br>
+    <select id="directionSelect" style="display: none;">
+        <option value="">Select direction</option>
+    </select>
+    <br>
     <select id="startStop">
         <option value="">Select start stop</option>
     </select>
@@ -25,21 +29,44 @@
     <br>
     <button onclick="calculateShade()">Calculate Shade Side</button>
     <p id="result"></p>
-
     <script>
         let busRoutes = {};
+
+        function determineDirection(firstStop, lastStop) {
+            const eastingDiff = Math.abs(lastStop.easting - firstStop.easting);
+            const northingDiff = Math.abs(lastStop.northing - firstStop.northing);
+            
+            if (eastingDiff > northingDiff) {
+                return lastStop.easting > firstStop.easting ? 'Eastbound' : 'Westbound';
+            } else {
+                return lastStop.northing > firstStop.northing ? 'Northbound' : 'Southbound';
+            }
+        }
 
         fetch('bus_routes.csv')
             .then(response => response.text())
             .then(data => {
                 const rows = data.split('\n').slice(1);
                 rows.forEach(row => {
-                    const [route, , , , , , stopName, easting, northing] = row.split(',');
+                    const [route, run, sequence, , , , stopName, easting, northing] = row.split(',');
                     if (!busRoutes[route]) {
-                        busRoutes[route] = [];
+                        busRoutes[route] = { 1: [], 2: [] };
                     }
-                    busRoutes[route].push({ name: stopName, easting: parseInt(easting), northing: parseInt(northing) });
+                    busRoutes[route][run].push({ 
+                        name: stopName, 
+                        easting: parseInt(easting), 
+                        northing: parseInt(northing),
+                        sequence: parseInt(sequence)
+                    });
                 });
+                for (let route in busRoutes) {
+                    for (let run in busRoutes[route]) {
+                        busRoutes[route][run].sort((a, b) => a.sequence - b.sequence);
+                        const firstStop = busRoutes[route][run][0];
+                        const lastStop = busRoutes[route][run][busRoutes[route][run].length - 1];
+                        busRoutes[route][run].direction = determineDirection(firstStop, lastStop);
+                    }
+                }
                 populateRouteSelect();
             });
 
@@ -54,7 +81,24 @@
         }
 
         document.getElementById('routeSelect').addEventListener('change', function() {
-            const stops = busRoutes[this.value] || [];
+            const directionSelect = document.getElementById('directionSelect');
+            directionSelect.style.display = 'block';
+            directionSelect.innerHTML = '<option value="">Select direction</option>';
+            const route = busRoutes[this.value];
+            for (let run in route) {
+                const option = document.createElement('option');
+                option.value = run;
+                option.textContent = route[run].direction;
+                directionSelect.appendChild(option);
+            }
+            document.getElementById('startStop').innerHTML = '<option value="">Select start stop</option>';
+            document.getElementById('endStop').innerHTML = '<option value="">Select end stop</option>';
+        });
+
+        document.getElementById('directionSelect').addEventListener('change', function() {
+            const route = document.getElementById('routeSelect').value;
+            const direction = this.value;
+            const stops = busRoutes[route][direction] || [];
             const startSelect = document.getElementById('startStop');
             const endSelect = document.getElementById('endStop');
             startSelect.innerHTML = '<option value="">Select start stop</option>';
@@ -70,23 +114,23 @@
 
         function calculateShade() {
             const route = document.getElementById('routeSelect').value;
+            const direction = document.getElementById('directionSelect').value;
             const startIndex = document.getElementById('startStop').value;
             const endIndex = document.getElementById('endStop').value;
 
-            if (!route || startIndex === '' || endIndex === '') {
-                alert('Please select a route and both stops.');
+            if (!route || !direction || startIndex === '' || endIndex === '') {
+                alert('Please select a route, direction, and both stops.');
                 return;
             }
 
-            const startStop = busRoutes[route][startIndex];
-            const endStop = busRoutes[route][endIndex];
+            const startStop = busRoutes[route][direction][startIndex];
+            const endStop = busRoutes[route][direction][endIndex];
 
-            const direction = Math.atan2(endStop.northing - startStop.northing, endStop.easting - startStop.easting) * 180 / Math.PI;
+            const bearing = Math.atan2(endStop.northing - startStop.northing, endStop.easting - startStop.easting) * 180 / Math.PI;
             
             // Simplified sun position (always assume sun is in the south)
             const sunAzimuth = 180;
-
-            const diff = (direction - sunAzimuth + 360) % 360;
+            const diff = (bearing - sunAzimuth + 360) % 360;
             const shadeSide = diff >= 0 && diff < 180 ? 'left' : 'right';
 
             document.getElementById('result').textContent = `For the most shade, sit on the ${shadeSide} side of the bus.`;
