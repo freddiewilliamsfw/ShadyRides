@@ -26,8 +26,18 @@
     <button onclick="calculateShade()">Calculate Shade Side</button>
     <p id="result"></p>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.7.5/proj4.js"></script>
     <script>
         let busRoutes = {};
+
+        // Define the British National Grid and WGS84 projections
+        proj4.defs("EPSG:27700", "+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +datum=OSGB36 +units=m +no_defs");
+        proj4.defs("EPSG:4326", "+proj=longlat +datum=WGS84 +no_defs");
+
+        function convertBNGToLatLon(easting, northing) {
+            const [lon, lat] = proj4("EPSG:27700", "EPSG:4326", [easting, northing]);
+            return { lat, lon };
+        }
 
         fetch('bus_routes.csv')
             .then(response => response.text())
@@ -38,7 +48,8 @@
                     if (!busRoutes[route]) {
                         busRoutes[route] = [];
                     }
-                    busRoutes[route].push({ name: stopName, easting: parseInt(easting), northing: parseInt(northing) });
+                    const { lat, lon } = convertBNGToLatLon(parseInt(easting), parseInt(northing));
+                    busRoutes[route].push({ name: stopName, lat, lon });
                 });
                 populateRouteSelect();
             });
@@ -81,7 +92,7 @@
             const startStop = busRoutes[route][startIndex];
             const endStop = busRoutes[route][endIndex];
 
-            const direction = Math.atan2(endStop.northing - startStop.northing, endStop.easting - startStop.easting) * 180 / Math.PI;
+            const direction = Math.atan2(endStop.lat - startStop.lat, endStop.lon - startStop.lon) * 180 / Math.PI;
             
             // Simplified sun position (always assume sun is in the south)
             const sunAzimuth = 180;
