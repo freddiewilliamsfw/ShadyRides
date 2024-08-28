@@ -90,6 +90,16 @@
             return directions[Math.round(bearing / 45) % 8];
         }
 
+        function getShadySide(bearing) {
+            if (bearing === 0 || bearing === 180 || bearing === 360) {
+                return "It doesn't matter which side you sit!";
+            } else if (bearing > 0 && bearing < 180) {
+                return "left";
+            } else {
+                return "right";
+            }
+        }
+
         function calculateShade() {
             const route = document.getElementById('routeSelect').value;
             const startIndex = document.getElementById('startStop').value;
@@ -105,13 +115,13 @@
 
             const bearing = calculateBearing(startStop.easting, startStop.northing, endStop.easting, endStop.northing);
             const compassDirection = getCompassDirection(bearing);
-            
-            // Simplified sun position (always assume sun is in the south)
-            const sunAzimuth = 180;
-            const diff = (bearing - sunAzimuth + 360) % 360;
-            const shadeSide = diff >= 0 && diff < 180 ? 'left' : 'right';
+            const shadySide = getShadySide(bearing);
 
-            document.getElementById('result').textContent = `For the most shade, sit on the ${shadeSide} side of the bus.`;
+            const resultText = shadySide === "It doesn't matter which side you sit!" 
+                ? shadySide 
+                : `For the most shade, sit on the ${shadySide} side of the bus.`;
+
+            document.getElementById('result').textContent = resultText;
             document.getElementById('direction').textContent = `The bus is traveling in a ${compassDirection} direction (bearing: ${bearing.toFixed(2)}°).`;
         }
     </script>
