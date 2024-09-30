@@ -144,12 +144,10 @@
             <button onclick="resetApp()" id="resetButton" style="display: none;">Check a new ride</button>
         </div>
  
-        <div id="map" style="height: 400px; width: 100%; margin-top: 20px;"></div>
-    
-            <p id="result"></p>
-            <p id="direction"></p>
-            <p id="sunPosition"></p>
-            <p id="error"></p>
+<div id="map-container">
+    <div id="map"></div>
+    <div id="sun-indicator"></div>
+</div>
 
     </div>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCPb5lUVJhcQk5ghBUPwY1CjwAs0G6Pr3Q&libraries=routes"></script>
@@ -282,6 +280,7 @@
                 }
                 populateRouteSelect();
                 setCurrentTime();
+                initMap(); // Initialize the map after data is loaded
             })
             .catch(error => {
                 console.error('Error:', error);
@@ -371,13 +370,10 @@ function calculateShade() {
     const startIndex = document.getElementById('startStop').value;
     const endIndex = document.getElementById('endStop').value;
     const time = document.getElementById('timeInput').value;
-    const sunPosition = calculateSunPosition(time);
-    updateSunPosition(sunPosition);
 
     if (!route || !run || startIndex === '' || endIndex === '' || !time) {
         alert('Please select a route, run, both stops, and a time.');
         return;
-
     }
 
     const startStop = busRoutes[route][run][startIndex];
@@ -397,6 +393,7 @@ function calculateShade() {
         document.getElementById('direction').textContent = '';
         document.getElementById('sunPosition').textContent = '';
     } else {
+        updateSunPosition(sunPosition);
         const shadySide = getShadySide(bearing, sunPosition);
 
         const resultText = shadySide === "It doesn't matter which side you sit!" 
