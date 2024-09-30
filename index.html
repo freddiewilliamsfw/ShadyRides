@@ -60,8 +60,8 @@
             background-repeat: no-repeat;
             border: none;
             color: white;
-            width: 150px;
-            height: 80px;
+            width: 150px;  /* Adjust this to match your button image width */
+            height: 80px; /* Adjust this to match your button image height */
             padding: 5px 10px;
             text-align: center;
             -webkit-appearance: none;
@@ -77,27 +77,29 @@
             color: red;
         }
         #map-container {
-            width: 400px;
-            height: 400px;
-            border-radius: 50%;
-            overflow: hidden;
-            margin: 20px auto;
-            position: relative;
-        }
-        #map {
-            width: 100%;
-            height: 100%;
-        }
-        #sun-indicator {
-            position: absolute;
-            width: 20px;
-            height: 20px;
-            background-color: yellow;
-            border-radius: 50%;
-            box-shadow: 0 0 10px orange;
-            transform: translate(-50%, -50%);
-            z-index: 1000;
-        }
+        width: 400px;
+        height: 400px;
+        border-radius: 50%;
+        overflow: hidden;
+        margin: 20px auto;
+        position: relative;
+    }
+    
+    #map {
+        width: 100%;
+        height: 100%;
+    }
+    
+    #sun-indicator {
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        background-color: yellow;
+        border-radius: 50%;
+        box-shadow: 0 0 10px orange;
+        transform: translate(-50%, -50%);
+        z-index: 1000;
+    }
     </style>
 </head>
 <body>
@@ -142,25 +144,114 @@
             <button onclick="resetApp()" id="resetButton" style="display: none;">Check a new ride</button>
         </div>
  
-        <div id="map-container">
-            <div id="map"></div>
-            <div id="sun-indicator"></div>
-        </div>
+<div id="map-container">
+    <div id="map"></div>
+    <div id="sun-indicator"></div>
+</div>
 
-        <p id="result"></p>
-        <p id="direction"></p>
-        <p id="sunPosition"></p>
-        <p id="error"></p>
     </div>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCPb5lUVJhcQk5ghBUPwY1CjwAs0G6Pr3Q&libraries=routes"></script>
 
     <script>
         let busRoutes = {};
         let map;
         let directionsService;
         let directionsRenderer;
-        
+
+        function calculateBearing(startEasting, startNorthing, endEasting, endNorthing) {
+            const y = endEasting - startEasting;
+            const x = endNorthing - startNorthing;
+            let bearing = Math.atan2(y, x) * 180 / Math.PI;
+            if (bearing < 0) {
+                bearing += 360;
+            }
+            return bearing;
+        }
+
+        function getRunDirection(bearing) {
+            if ((bearing >= 0 && bearing < 45) || (bearing >= 315 && bearing <= 360)) {
+                return 'Northbound';
+            } else if (bearing >= 45 && bearing < 135) {
+                return 'Eastbound';
+            } else if (bearing >= 135 && bearing < 225) {
+                return 'Southbound';
+            } else {
+                return 'Westbound';
+            }
+        }
+
+        function initMap() {
+    map = new google.maps.Map(document.getElementById('map'), {
+        center: { lat: 51.5074, lng: -0.1278 }, // London center
+        zoom: 12,
+        mapTypeId: 'satellite',
+        disableDefaultUI: true,
+        zoomControl: true,
+        fullscreenControl: false,
+        streetViewControl: false,
+        mapTypeControl: false
+    });
+    directionsService = new google.maps.DirectionsService();
+    directionsRenderer = new google.maps.DirectionsRenderer({
+        map: map,
+        suppressMarkers: true // This removes the default A and B markers
+    });
+}
+        function displayRoute(startStop, endStop) {
+            const request = {
+                origin: `${startStop.name}, London`,
+                destination: `${endStop.name}, London`,
+                travelMode: 'TRANSIT',
+                transitOptions: {
+                    modes: ['BUS']
+        }
+    };
+     directionsService.route(request, function(result, status) {
+        if (status === 'OK') {
+            directionsRenderer.setDirections(result);
+        } else {
+            console.error('Directions request failed due to ' + status);
+        }
+    });
+}
+        function calculateSunPosition(time) {
+            // Approximate sun position based on time of day
+            // Assuming sun rises at 6 AM (90°) and sets at 6 PM (270°)
+            const [hours, minutes] = time.split(':').map(Number);
+            const timeAsDecimal = hours + minutes / 60;
+            
+            // Map 24-hour time to 360 degrees, starting at 90° at 6 AM
+            let sunPosition = ((timeAsDecimal - 6) * 15 + 90) % 360;
+            
+            // Ensure the result is between 0 and 360
+            if (sunPosition < 0) sunPosition += 360;
+            
+            return sunPosition;
+        }
+
+        function getCompassDirection(bearing) {
+            const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+            return directions[Math.round(bearing / 45) % 8];
+        }
+
+        function getShadySide(bearing, sunPosition) {
+            const relativeBearing = (bearing - sunPosition + 360) % 360;
+            if (relativeBearing === 0 || relativeBearing === 180) {
+                return "It doesn't matter which side you sit!";
+            } else if (relativeBearing > 0 && relativeBearing < 180) {
+                return "right";
+            } else {
+                return "left";
+            }
+        }
+
         fetch('bus_routes.csv')
-            .then(response => response.text())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.text();
+            })
             .then(data => {
                 const rows = data.split('\n').slice(1);
                 rows.forEach(row => {
@@ -187,143 +278,26 @@
                         busRoutes[route][run].direction = getRunDirection(bearing);
                     }
                 }
-                console.log('Bus routes loaded:', busRoutes);
                 populateRouteSelect();
                 setCurrentTime();
+                populateRouteSelect();
+                setCurrentTime();
+                initMap(); // Initialize the map after data is loaded
             })
             .catch(error => {
-                console.error('Error loading bus routes:', error);
+                console.error('Error:', error);
                 document.getElementById('error').textContent = 'Error loading bus routes. Please try again later.';
             });
-        function loadGoogleMapsAPI() {
-            const script = document.createElement('script');
-            script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyCPb5lUVJhcQk5ghBUPwY1CjwAs0G6Pr3Q&libraries=routes&callback=initMap`;
-            script.async = true;
-            script.defer = true;
-            document.head.appendChild(script);
-}
-        
-        function calculateBearing(startEasting, startNorthing, endEasting, endNorthing) {
-            const y = endEasting - startEasting;
-            const x = endNorthing - startNorthing;
-            let bearing = Math.atan2(y, x) * 180 / Math.PI;
-            if (bearing < 0) {
-                bearing += 360;
-            }
-            return bearing;
-        }
 
-        function getRunDirection(bearing) {
-            if ((bearing >= 0 && bearing < 45) || (bearing >= 315 && bearing <= 360)) {
-                return 'Northbound';
-            } else if (bearing >= 45 && bearing < 135) {
-                return 'Eastbound';
-            } else if (bearing >= 135 && bearing < 225) {
-                return 'Southbound';
-            } else {
-                return 'Westbound';
-            }
-        }
-
-window.initMap = function() {
-    map = new google.maps.Map(document.getElementById('map'), {
-        center: { lat: 51.5074, lng: -0.1278 }, // London center
-        zoom: 12,
-        mapTypeId: 'satellite',
-        disableDefaultUI: true,
-        zoomControl: true,
-        fullscreenControl: false,
-        streetViewControl: false,
-        mapTypeControl: false
-    });
-    directionsService = new google.maps.DirectionsService();
-    directionsRenderer = new google.maps.DirectionsRenderer({
-        map: map,
-        suppressMarkers: true // This removes the default A and B markers
-    });
-
-}
-
-        loadGoogleMapsAPI();
-
-        function displayRoute(startStop, endStop) {
-            const request = {
-                origin: `${startStop.name}, London`,
-                destination: `${endStop.name}, London`,
-                travelMode: 'TRANSIT',
-                transitOptions: {
-                    modes: ['BUS']
-                }
-            };
-            directionsService.route(request, function(result, status) {
-                if (status === 'OK') {
-                    directionsRenderer.setDirections(result);
-                    
-                    // Fit the route within the circular map
-                    const bounds = new google.maps.LatLngBounds();
-                    result.routes[0].overview_path.forEach(point => bounds.extend(point));
-                    map.fitBounds(bounds);
-
-                    // Adjust zoom to ensure the route fits within the circle
-                    google.maps.event.addListenerOnce(map, 'idle', function() {
-                        if (map.getZoom() > 15) map.setZoom(15);
-                    });
-                } else {
-                    console.error('Directions request failed due to ' + status);
-                }
-            });
-        }
-
-        function calculateSunPosition(time) {
-            const [hours, minutes] = time.split(':').map(Number);
-            const timeAsDecimal = hours + minutes / 60;
-            let sunPosition = ((timeAsDecimal - 6) * 15 + 90) % 360;
-            if (sunPosition < 0) sunPosition += 360;
-            return sunPosition;
-        }
-
-        function getCompassDirection(bearing) {
-            const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-            return directions[Math.round(bearing / 45) % 8];
-        }
-
-        function getShadySide(bearing, sunPosition) {
-            const relativeBearing = (bearing - sunPosition + 360) % 360;
-            if (relativeBearing === 0 || relativeBearing === 180) {
-                return "It doesn't matter which side you sit!";
-            } else if (relativeBearing > 0 && relativeBearing < 180) {
-                return "right";
-            } else {
-                return "left";
-            }
-        }
-
-        function updateSunPosition(sunPosition) {
-            const sunIndicator = document.getElementById('sun-indicator');
-            const mapContainer = document.getElementById('map-container');
-            const radius = mapContainer.offsetWidth / 2;
-            const centerX = radius;
-            const centerY = radius;
-
-            const angle = (sunPosition - 90) * (Math.PI / 180);
-            const x = centerX + radius * Math.cos(angle);
-            const y = centerY + radius * Math.sin(angle);
-
-            sunIndicator.style.left = `${x}px`;
-            sunIndicator.style.top = `${y}px`;
-        }
-
-       function populateRouteSelect() {
+        function populateRouteSelect() {
             const select = document.getElementById('routeSelect');
             Object.keys(busRoutes).forEach(route => {
                 const option = document.createElement('option');
                 option.value = route;
                 option.textContent = route;
                 select.appendChild(option);
-                console.log('Added route option:', route);
-    });
-    console.log('Total routes added:', select.options.length - 1);
-}
+            });
+        }
 
         function setCurrentTime() {
             const now = new Date();
@@ -333,23 +307,21 @@ window.initMap = function() {
         }
 
         document.getElementById('routeSelect').addEventListener('change', function() {
-    console.log('Route selected:', this.value);
-    resetApp();
-    if (this.value) {
-        const runSelect = document.getElementById('runSelect');
-        runSelect.innerHTML = '<option value="">Select a direction</option>';
-        runSelect.style.display = 'block';
+            resetApp();
+            if (this.value) {
+                const runSelect = document.getElementById('runSelect');
+                runSelect.innerHTML = '<option value="">Select a route</option>';
+                runSelect.style.display = 'block';
 
-        const route = busRoutes[this.value];
-        console.log('Runs for route:', Object.keys(route));
-        Object.keys(route).forEach(run => {
-            const option = document.createElement('option');
-            option.value = run;
-            option.textContent = `${route[run].direction} (Run ${run})`;
-            runSelect.appendChild(option);
+                const route = busRoutes[this.value];
+                Object.keys(route).forEach(run => {
+                    const option = document.createElement('option');
+                    option.value = run;
+                    option.textContent = `${route[run].direction} (Run ${run})`;
+                    runSelect.appendChild(option);
+                });
+            }
         });
-    }
-});
 
         document.getElementById('runSelect').addEventListener('change', function() {
             if (this.value) {
@@ -372,70 +344,96 @@ window.initMap = function() {
 
                 startSelect.style.display = 'block';
                 endSelect.style.display = 'block';
-                document.querySelector('button[onclick="calculateShade()"]').style.display = 'block';
+                document.querySelector('button').style.display = 'block';
             }
         });
 
-       function resetApp() {
-    document.getElementById('runSelect').style.display = 'none';
-    document.getElementById('startStop').style.display = 'none';
-    document.getElementById('endStop').style.display = 'none';
-    document.querySelector('button[onclick="calculateShade()"]').style.display = 'none';
-    document.getElementById('resetButton').style.display = 'none';
-    document.getElementById('result').textContent = '';
-    document.getElementById('direction').textContent = '';
-    document.getElementById('sunPosition').textContent = '';
-    setCurrentTime();
-    
-    // Reset the map
-    if (directionsRenderer) {
-        directionsRenderer.setMap(null);
-    }
-    if (map) {
-        map.setCenter({ lat: 51.5074, lng: -0.1278 });
-        map.setZoom(12);
+        
+function calculateShade() {
+    const route = document.getElementById('routeSelect').value;
+    const run = document.getElementById('runSelect').value;
+    const startIndex = document.getElementById('startStop').value;
+    const endIndex = document.getElementById('endStop').value;
+    const time = document.getElementById('timeInput').value;
+
+    if (!route || !run || startIndex === '' || endIndex === '' || !time) {
+        alert('Please select a route, run, both stops, and a time.');
+        return;
     }
 
-    // Clear sun indicator
-    const sunIndicator = document.getElementById('sun-indicator');
-    sunIndicator.style.display = 'none';
-} 
-        function calculateShade() {
-            const route = document.getElementById('routeSelect').value;
-            const run = document.getElementById('runSelect').value;
-            const startIndex = document.getElementById('startStop').value;
-            const endIndex = document.getElementById('endStop').value;
-            const time = document.getElementById('timeInput').value;
+    const startStop = busRoutes[route][run][startIndex];
+    const endStop = busRoutes[route][run][endIndex];
 
-            if (!route || !run || startIndex === '' || endIndex === '' || !time) {
-                alert('Please select a route, run, both stops, and a time.');
-                return;
-            }
+    // Display the route on the map
+    displayRoute(startStop, endStop);
 
-            const startStop = busRoutes[route][run][startIndex];
-            const endStop = busRoutes[route][run][endIndex];
+    const bearing = calculateBearing(startStop.easting, startStop.northing, endStop.easting, endStop.northing);
+    const compassDirection = getCompassDirection(bearing);
 
-            displayRoute(startStop, endStop);
+    const sunPosition = calculateSunPosition(time);
 
-            const bearing = calculateBearing(startStop.easting, startStop.northing, endStop.easting, endStop.northing);
-            const compassDirection = getCompassDirection(bearing);
+    // Check if it's night time
+    if (sunPosition > 270 || sunPosition < 90) {
+        document.getElementById('result').textContent = "That's night time, it's all shade baby!";
+        document.getElementById('direction').textContent = '';
+        document.getElementById('sunPosition').textContent = '';
+    } else {
+        updateSunPosition(sunPosition);
+        const shadySide = getShadySide(bearing, sunPosition);
 
-            const sunPosition = calculateSunPosition(time);
+        const resultText = shadySide === "It doesn't matter which side you sit!" 
+            ? shadySide 
+            : `For the most shade, sit on the ${shadySide} side of the bus.`;
 
-            if (sunPosition > 270 || sunPosition < 90) {
-                document.getElementById('result').textContent = "That's night time, it's all shade baby!";
-                document.getElementById('direction').textContent = '';
-                document.getElementById('sunPosition').textContent = '';
-            } else {
-                updateSunPosition(sunPosition);
-                const shadySide = getShadySide(bearing, sunPosition);
+        document.getElementById('result').textContent = resultText;
+        document.getElementById('direction').textContent = `The bus is traveling in a ${compassDirection} direction (bearing: ${bearing.toFixed(2)}°).`;
+        document.getElementById('sunPosition').textContent = `Approximate sun position: ${sunPosition.toFixed(2)}°`;
+    }
 
-                const resultText = shadySide === "It doesn't matter which side you sit!" 
-                    ? shadySide 
-                    : `For the most shade, sit on the ${shadySide} side of the bus.`;
+    document.getElementById('resetButton').style.display = 'block';
+}
+        function displayRoute(startStop, endStop) {
+    const request = {
+        origin: `${startStop.name}, London`,
+        destination: `${endStop.name}, London`,
+        travelMode: 'TRANSIT',
+        transitOptions: {
+            modes: ['BUS']
+        }
+    };
 
-                document.getElementById('result').textContent = resultText;
-                document.getElementById('direction').textContent = `The bus is traveling in a ${compassDirection} direction (bearing: ${bearing.toFixed(2)}°).`;
-                document.getElementById('sunPosition').textContent = `Approximate sun position: ${sunPosition.toFixed(2)}°
+    directionsService.route(request, function(result, status) {
+        if (status === 'OK') {
+            directionsRenderer.setDirections(result);
+            
+            // Fit the route within the circular map
+            const bounds = new google.maps.LatLngBounds();
+            result.routes[0].overview_path.forEach(point => bounds.extend(point));
+            map.fitBounds(bounds);
 
-                
+            // Adjust zoom to ensure the route fits within the circle
+            google.maps.event.addListenerOnce(map, 'idle', function() {
+                if (map.getZoom() > 15) map.setZoom(15);
+            });
+        } else {
+            console.error('Directions request failed due to ' + status);
+        }
+    });
+}
+        function resetApp() {
+            document.getElementById('runSelect').style.display = 'none';
+            document.getElementById('startStop').style.display = 'none';
+            document.getElementById('endStop').style.display = 'none';
+            document.querySelector('button').style.display = 'none';
+            document.getElementById('resetButton').style.display = 'none';
+            document.getElementById('result').textContent = '';
+            document.getElementById('direction').textContent = '';
+            document.getElementById('sunPosition').textContent = '';
+            setCurrentTime();
+        }
+
+        google.maps.event.addDomListener(window, 'load', initMap);
+
+    </script>
+</body>
+</html>
