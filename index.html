@@ -294,23 +294,31 @@
 
             const startStop = busRoutes[route][run][startIndex];
             const endStop = busRoutes[route][run][endIndex];
-
+        
             const bearing = calculateBearing(startStop.easting, startStop.northing, endStop.easting, endStop.northing);
             const compassDirection = getCompassDirection(bearing);
-
+        
             const sunPosition = calculateSunPosition(time);
 
+            // Check if it's night time
+            if (sunPosition > 270 || sunPosition < 90) {
+                document.getElementById('result').textContent = "That's night time, it's all shade baby!";
+                document.getElementById('direction').textContent = '';
+                document.getElementById('sunPosition').textContent = '';
+            } else {
             const shadySide = getShadySide(bearing, sunPosition);
 
             const resultText = shadySide === "It doesn't matter which side you sit!" 
-                ? shadySide 
-                : `For the most shade, sit on the ${shadySide} side of the bus.`;
+            ? shadySide 
+            : `For the most shade, sit on the ${shadySide} side of the bus.`;
 
             document.getElementById('result').textContent = resultText;
             document.getElementById('direction').textContent = `The bus is traveling in a ${compassDirection} direction (bearing: ${bearing.toFixed(2)}°).`;
             document.getElementById('sunPosition').textContent = `Approximate sun position: ${sunPosition.toFixed(2)}°`;
-            document.getElementById('resetButton').style.display = 'block';
         }
+
+    document.getElementById('resetButton').style.display = 'block';
+}
 
         function resetApp() {
             document.getElementById('runSelect').style.display = 'none';
