@@ -268,12 +268,7 @@
         }
 
         fetch('bus_routes.csv')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.text();
-            })
+            .then(response => response.text())
             .then(data => {
                 const rows = data.split('\n').slice(1);
                 rows.forEach(row => {
@@ -300,24 +295,27 @@
                         busRoutes[route][run].direction = getRunDirection(bearing);
                     }
                 }
+                console.log('Bus routes loaded:', busRoutes);
                 populateRouteSelect();
                 setCurrentTime();
                 initMap(); // Initialize the map after data is loaded
             })
             .catch(error => {
-                console.error('Error:', error);
+                console.error('Error loading bus routes:', error);
                 document.getElementById('error').textContent = 'Error loading bus routes. Please try again later.';
             });
 
-        function populateRouteSelect() {
+       function populateRouteSelect() {
             const select = document.getElementById('routeSelect');
             Object.keys(busRoutes).forEach(route => {
                 const option = document.createElement('option');
                 option.value = route;
                 option.textContent = route;
                 select.appendChild(option);
-            });
-        }
+                console.log('Added route option:', route);
+    });
+    console.log('Total routes added:', select.options.length - 1);
+}
 
         function setCurrentTime() {
             const now = new Date();
@@ -327,21 +325,23 @@
         }
 
         document.getElementById('routeSelect').addEventListener('change', function() {
-            resetApp();
-            if (this.value) {
-                const runSelect = document.getElementById('runSelect');
-                runSelect.innerHTML = '<option value="">Select a direction</option>';
-                runSelect.style.display = 'block';
+    console.log('Route selected:', this.value);
+    resetApp();
+    if (this.value) {
+        const runSelect = document.getElementById('runSelect');
+        runSelect.innerHTML = '<option value="">Select a direction</option>';
+        runSelect.style.display = 'block';
 
-                const route = busRoutes[this.value];
-                Object.keys(route).forEach(run => {
-                    const option = document.createElement('option');
-                    option.value = run;
-                    option.textContent = `${route[run].direction} (Run ${run})`;
-                    runSelect.appendChild(option);
-                });
-            }
+        const route = busRoutes[this.value];
+        console.log('Runs for route:', Object.keys(route));
+        Object.keys(route).forEach(run => {
+            const option = document.createElement('option');
+            option.value = run;
+            option.textContent = `${route[run].direction} (Run ${run})`;
+            runSelect.appendChild(option);
         });
+    }
+});
 
         document.getElementById('runSelect').addEventListener('change', function() {
             if (this.value) {
@@ -368,6 +368,30 @@
             }
         });
 
+       function resetApp() {
+    document.getElementById('runSelect').style.display = 'none';
+    document.getElementById('startStop').style.display = 'none';
+    document.getElementById('endStop').style.display = 'none';
+    document.querySelector('button[onclick="calculateShade()"]').style.display = 'none';
+    document.getElementById('resetButton').style.display = 'none';
+    document.getElementById('result').textContent = '';
+    document.getElementById('direction').textContent = '';
+    document.getElementById('sunPosition').textContent = '';
+    setCurrentTime();
+    
+    // Reset the map
+    if (directionsRenderer) {
+        directionsRenderer.setMap(null);
+    }
+    if (map) {
+        map.setCenter({ lat: 51.5074, lng: -0.1278 });
+        map.setZoom(12);
+    }
+
+    // Clear sun indicator
+    const sunIndicator = document.getElementById('sun-indicator');
+    sunIndicator.style.display = 'none';
+} 
         function calculateShade() {
             const route = document.getElementById('routeSelect').value;
             const run = document.getElementById('runSelect').value;
@@ -405,3 +429,5 @@
                 document.getElementById('result').textContent = resultText;
                 document.getElementById('direction').textContent = `The bus is traveling in a ${compassDirection} direction (bearing: ${bearing.toFixed(2)}°).`;
                 document.getElementById('sunPosition').textContent = `Approximate sun position: ${sunPosition.toFixed(2)}°
+
+                
