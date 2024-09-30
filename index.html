@@ -280,8 +280,6 @@
                 }
                 populateRouteSelect();
                 setCurrentTime();
-                populateRouteSelect();
-                setCurrentTime();
                 initMap(); // Initialize the map after data is loaded
             })
             .catch(error => {
@@ -348,6 +346,23 @@
             }
         });
 
+function updateSunPosition(sunPosition) {
+    const sunIndicator = document.getElementById('sun-indicator');
+    const mapContainer = document.getElementById('map-container');
+    const radius = mapContainer.offsetWidth / 2;
+    const centerX = radius;
+    const centerY = radius;
+
+    // Convert sun position (0-360) to radians
+    const angle = (sunPosition - 90) * (Math.PI / 180);
+
+    // Calculate position on the circle
+    const x = centerX + radius * Math.cos(angle);
+    const y = centerY + radius * Math.sin(angle);
+
+    sunIndicator.style.left = `${x}px`;
+    sunIndicator.style.top = `${y}px`;
+}
         
 function calculateShade() {
     const route = document.getElementById('routeSelect').value;
