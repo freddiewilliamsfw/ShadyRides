@@ -160,6 +160,43 @@
         let directionsService;
         let directionsRenderer;
 
+        fetch('bus_routes.csv')
+            .then(response => response.text())
+            .then(data => {
+                const rows = data.split('\n').slice(1);
+                rows.forEach(row => {
+                    const [route, run, sequence, , , , stopName, easting, northing] = row.split(',');
+                    if (!busRoutes[route]) {
+                        busRoutes[route] = {};
+                    }
+                    if (!busRoutes[route][run]) {
+                        busRoutes[route][run] = [];
+                    }
+                    busRoutes[route][run].push({ 
+                        name: stopName, 
+                        easting: parseInt(easting), 
+                        northing: parseInt(northing),
+                        sequence: parseInt(sequence)
+                    });
+                });
+                for (let route in busRoutes) {
+                    for (let run in busRoutes[route]) {
+                        busRoutes[route][run].sort((a, b) => a.sequence - b.sequence);
+                        const firstStop = busRoutes[route][run][0];
+                        const lastStop = busRoutes[route][run][busRoutes[route][run].length - 1];
+                        const bearing = calculateBearing(firstStop.easting, firstStop.northing, lastStop.easting, lastStop.northing);
+                        busRoutes[route][run].direction = getRunDirection(bearing);
+                    }
+                }
+                console.log('Bus routes loaded:', busRoutes);
+                populateRouteSelect();
+                setCurrentTime();
+                initMap(); // Initialize the map after data is loaded
+            })
+            .catch(error => {
+                console.error('Error loading bus routes:', error);
+                document.getElementById('error').textContent = 'Error loading bus routes. Please try again later.';
+            });
         function calculateBearing(startEasting, startNorthing, endEasting, endNorthing) {
             const y = endEasting - startEasting;
             const x = endNorthing - startNorthing;
@@ -266,44 +303,6 @@
             sunIndicator.style.left = `${x}px`;
             sunIndicator.style.top = `${y}px`;
         }
-
-        fetch('bus_routes.csv')
-            .then(response => response.text())
-            .then(data => {
-                const rows = data.split('\n').slice(1);
-                rows.forEach(row => {
-                    const [route, run, sequence, , , , stopName, easting, northing] = row.split(',');
-                    if (!busRoutes[route]) {
-                        busRoutes[route] = {};
-                    }
-                    if (!busRoutes[route][run]) {
-                        busRoutes[route][run] = [];
-                    }
-                    busRoutes[route][run].push({ 
-                        name: stopName, 
-                        easting: parseInt(easting), 
-                        northing: parseInt(northing),
-                        sequence: parseInt(sequence)
-                    });
-                });
-                for (let route in busRoutes) {
-                    for (let run in busRoutes[route]) {
-                        busRoutes[route][run].sort((a, b) => a.sequence - b.sequence);
-                        const firstStop = busRoutes[route][run][0];
-                        const lastStop = busRoutes[route][run][busRoutes[route][run].length - 1];
-                        const bearing = calculateBearing(firstStop.easting, firstStop.northing, lastStop.easting, lastStop.northing);
-                        busRoutes[route][run].direction = getRunDirection(bearing);
-                    }
-                }
-                console.log('Bus routes loaded:', busRoutes);
-                populateRouteSelect();
-                setCurrentTime();
-                initMap(); // Initialize the map after data is loaded
-            })
-            .catch(error => {
-                console.error('Error loading bus routes:', error);
-                document.getElementById('error').textContent = 'Error loading bus routes. Please try again later.';
-            });
 
        function populateRouteSelect() {
             const select = document.getElementById('routeSelect');
