@@ -281,8 +281,8 @@
             }
         });
 
-        function calculateShade() {
-const route = document.getElementById('routeSelect').value;
+function calculateShade() {
+    const route = document.getElementById('routeSelect').value;
     const run = document.getElementById('runSelect').value;
     const startIndex = document.getElementById('startStop').value;
     const endIndex = document.getElementById('endStop').value;
@@ -304,8 +304,8 @@ const route = document.getElementById('routeSelect').value;
     // Check if it's night time
     if (sunPosition > 270 || sunPosition < 90) {
         document.getElementById('result').textContent = "That's night time, it's all shade baby!";
-        document.getElementById('direction').textContent = `The bus is traveling in a ${compassDirection} direction (bearing: ${bearing.toFixed(2)}°).`;
-        document.getElementById('sunPosition').textContent = `Approximate sun position: ${sunPosition.toFixed(2)}°`;
+        document.getElementById('direction').textContent = '';
+        document.getElementById('sunPosition').textContent = '';
     } else {
         const shadySide = getShadySide(bearing, sunPosition);
 
@@ -319,8 +319,7 @@ const route = document.getElementById('routeSelect').value;
     }
 
     document.getElementById('resetButton').style.display = 'block';
-        }
-
+}
         function resetApp() {
             document.getElementById('runSelect').style.display = 'none';
             document.getElementById('startStop').style.display = 'none';
