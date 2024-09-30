@@ -88,10 +88,10 @@
         <button onclick="calculateShade()" style="display: none;">Calculate Shade Side</button>
         <p id="result"></p>
         <p id="direction"></p>
+        <p id="sunPosition"></p>
         <p id="error"></p>
     </div>
     <script>
-        // The JavaScript remains the same as in the previous version
         let busRoutes = {};
 
         function calculateBearing(startEasting, startNorthing, endEasting, endNorthing) {
@@ -113,6 +113,38 @@
                 return 'Southbound';
             } else {
                 return 'Westbound';
+            }
+        }
+
+        function calculateSunPosition(date) {
+            // Approximate sun position based on time of day
+            // Assuming sun rises at 6 AM (90°) and sets at 6 PM (270°)
+            const hour = date.getHours();
+            const minute = date.getMinutes();
+            const timeAsDecimal = hour + minute / 60;
+            
+            // Map 24-hour time to 360 degrees, starting at 90° at 6 AM
+            let sunPosition = ((timeAsDecimal - 6) * 15 + 90) % 360;
+            
+            // Ensure the result is between 0 and 360
+            if (sunPosition < 0) sunPosition += 360;
+            
+            return sunPosition;
+        }
+
+        function getCompassDirection(bearing) {
+            const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+            return directions[Math.round(bearing / 45) % 8];
+        }
+
+        function getShadySide(bearing, sunPosition) {
+            const relativeBearing = (bearing - sunPosition + 360) % 360;
+            if (relativeBearing === 0 || relativeBearing === 180) {
+                return "It doesn't matter which side you sit!";
+            } else if (relativeBearing > 0 && relativeBearing < 180) {
+                return "right";
+            } else {
+                return "left";
             }
         }
 
@@ -207,21 +239,6 @@
             document.querySelector('button').style.display = 'block';
         });
 
-        function getCompassDirection(bearing) {
-            const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-            return directions[Math.round(bearing / 45) % 8];
-        }
-
-        function getShadySide(bearing) {
-            if (bearing === 0 || bearing === 180 || bearing === 360) {
-                return "It doesn't matter which side you sit!";
-            } else if (bearing > 0 && bearing < 180) {
-                return "left";
-            } else {
-                return "right";
-            }
-        }
-
         function calculateShade() {
             const route = document.getElementById('routeSelect').value;
             const run = document.getElementById('runSelect').value;
@@ -238,7 +255,12 @@
 
             const bearing = calculateBearing(startStop.easting, startStop.northing, endStop.easting, endStop.northing);
             const compassDirection = getCompassDirection(bearing);
-            const shadySide = getShadySide(bearing);
+
+            // Calculate sun position based on current time
+            const currentTime = new Date();
+            const sunPosition = calculateSunPosition(currentTime);
+
+            const shadySide = getShadySide(bearing, sunPosition);
 
             const resultText = shadySide === "It doesn't matter which side you sit!" 
                 ? shadySide 
@@ -246,6 +268,7 @@
 
             document.getElementById('result').textContent = resultText;
             document.getElementById('direction').textContent = `The bus is traveling in a ${compassDirection} direction (bearing: ${bearing.toFixed(2)}°).`;
+            document.getElementById('sunPosition').textContent = `Approximate sun position: ${sunPosition.toFixed(2)}°`;
         }
     </script>
 </body>
