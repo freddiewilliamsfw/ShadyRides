@@ -32,35 +32,42 @@
         h1 {
             color: #333;
         }
+        .input-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .input-row label {
+            margin-right: 10px;
+            min-width: 200px;
+        }
         select, button, input {
-            margin: 10px 0;
+            margin: 5px 0;
             padding: 5px 10px;
-            width: 220px;
             height: 40px;
-            background-image: url('button.png');
+            border: 1px solid #ccc;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        select, button {
+            background-color: #f0f0f0;
+            color: black;
+        }
+        #routeSelect {
+            background-image: url('routebutton.png');
             background-size: cover;
             background-repeat: no-repeat;
             border: none;
             color: white;
-            font-size: 16px;
-            cursor: pointer;
-            appearance: none;
+            width: 220px;
+            text-align-last: center;
             -webkit-appearance: none;
             -moz-appearance: none;
-            text-align-last: center;
+            appearance: none;
         }
-        input {
-            background-image: none;
-            background-color: white;
-            color: black;
-            border: 1px solid #ccc;
-        }
-        select::-ms-expand {
-            display: none;
-        }
-        label {
-            display: block;
-            margin-top: 10px;
+        #timeInput {
+            margin-left: auto;
+            width: 150px;
         }
         #error {
             color: red;
@@ -75,27 +82,40 @@
         <h1>Shady Rides</h1>
         <p>Find the shady side of your bus journey in London!</p>
         
-        <select id="routeSelect">
-            <option value="">Select a route</option>
-        </select>
+        <div class="input-row">
+            <label for="routeSelect">Which bus are you getting?</label>
+            <select id="routeSelect">
+                <option value="">Select a route</option>
+            </select>
+            <input type="time" id="timeInput">
+        </div>
         
-        <select id="runSelect" style="display: none;">
-            <option value="">Select a direction</option>
-        </select>
+        <div class="input-row">
+            <select id="runSelect" style="display: none;">
+                <option value="">Select a direction</option>
+            </select>
+        </div>
         
-        <select id="startStop" style="display: none;">
-            <option value="">Select start stop</option>
-        </select>
+        <div class="input-row">
+            <select id="startStop" style="display: none;">
+                <option value="">Select start stop</option>
+            </select>
+        </div>
         
-        <select id="endStop" style="display: none;">
-            <option value="">Select end stop</option>
-        </select>
+        <div class="input-row">
+            <select id="endStop" style="display: none;">
+                <option value="">Select end stop</option>
+            </select>
+        </div>
         
-        <label for="timeInput">Time:</label>
-        <input type="time" id="timeInput">
+        <div class="input-row">
+            <button onclick="calculateShade()" style="display: none;">Calculate Shade Side</button>
+        </div>
         
-        <button onclick="calculateShade()" style="display: none;">Calculate Shade Side</button>
-        <button onclick="resetApp()" id="resetButton" style="display: none;">Check a new ride</button>
+        <div class="input-row">
+            <button onclick="resetApp()" id="resetButton" style="display: none;">Check a new ride</button>
+        </div>
+        
         <p id="result"></p>
         <p id="direction"></p>
         <p id="sunPosition"></p>
