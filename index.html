@@ -152,14 +152,13 @@
         <p id="sunPosition"></p>
         <p id="error"></p>
     </div>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCPb5lUVJhcQk5ghBUPwY1CjwAs0G6Pr3Q&libraries=routes"></script>
 
     <script>
         let busRoutes = {};
         let map;
         let directionsService;
         let directionsRenderer;
-
+        
         fetch('bus_routes.csv')
             .then(response => response.text())
             .then(data => {
@@ -191,12 +190,19 @@
                 console.log('Bus routes loaded:', busRoutes);
                 populateRouteSelect();
                 setCurrentTime();
-                initMap(); // Initialize the map after data is loaded
             })
             .catch(error => {
                 console.error('Error loading bus routes:', error);
                 document.getElementById('error').textContent = 'Error loading bus routes. Please try again later.';
             });
+        function loadGoogleMapsAPI() {
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyCPb5lUVJhcQk5ghBUPwY1CjwAs0G6Pr3Q&libraries=routes&callback=initMap`;
+            script.async = true;
+            script.defer = true;
+            document.head.appendChild(script);
+}
+        
         function calculateBearing(startEasting, startNorthing, endEasting, endNorthing) {
             const y = endEasting - startEasting;
             const x = endNorthing - startNorthing;
@@ -219,23 +225,24 @@
             }
         }
 
-        function initMap() {
-            map = new google.maps.Map(document.getElementById('map'), {
-                center: { lat: 51.5074, lng: -0.1278 }, // London center
-                zoom: 12,
-                mapTypeId: 'satellite',
-                disableDefaultUI: true,
-                zoomControl: true,
-                fullscreenControl: false,
-                streetViewControl: false,
-                mapTypeControl: false
-            });
-            directionsService = new google.maps.DirectionsService();
-            directionsRenderer = new google.maps.DirectionsRenderer({
-                map: map,
-                suppressMarkers: true // This removes the default A and B markers
-            });
-        }
+        window.initMap = function() {
+    map = new google.maps.Map(document.getElementById('map'), {
+        center: { lat: 51.5074, lng: -0.1278 }, // London center
+        zoom: 12,
+        mapTypeId: 'satellite',
+        disableDefaultUI: true,
+        zoomControl: true,
+        fullscreenControl: false,
+        streetViewControl: false,
+        mapTypeControl: false
+    });
+    directionsService = new google.maps.DirectionsService();
+    directionsRenderer = new google.maps.DirectionsRenderer({
+        map: map,
+        suppressMarkers: true // This removes the default A and B markers
+    });
+
+        loadGoogleMapsAPI();
 
         function displayRoute(startStop, endStop) {
             const request = {
