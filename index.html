@@ -32,7 +32,7 @@
         h1 {
             color: #333;
         }
-        select, button {
+        select, button, input {
             margin: 10px 0;
             padding: 5px 10px;
             width: 220px;
@@ -48,6 +48,12 @@
             -webkit-appearance: none;
             -moz-appearance: none;
             text-align-last: center;
+        }
+        input {
+            background-image: none;
+            background-color: white;
+            color: black;
+            border: 1px solid #ccc;
         }
         select::-ms-expand {
             display: none;
@@ -85,7 +91,11 @@
             <option value="">Select end stop</option>
         </select>
         
+        <label for="timeInput">Time:</label>
+        <input type="time" id="timeInput">
+        
         <button onclick="calculateShade()" style="display: none;">Calculate Shade Side</button>
+        <button onclick="resetApp()" id="resetButton" style="display: none;">Check a new ride</button>
         <p id="result"></p>
         <p id="direction"></p>
         <p id="sunPosition"></p>
@@ -116,12 +126,11 @@
             }
         }
 
-        function calculateSunPosition(date) {
+        function calculateSunPosition(time) {
             // Approximate sun position based on time of day
             // Assuming sun rises at 6 AM (90°) and sets at 6 PM (270°)
-            const hour = date.getHours();
-            const minute = date.getMinutes();
-            const timeAsDecimal = hour + minute / 60;
+            const [hours, minutes] = time.split(':').map(Number);
+            const timeAsDecimal = hours + minutes / 60;
             
             // Map 24-hour time to 360 degrees, starting at 90° at 6 AM
             let sunPosition = ((timeAsDecimal - 6) * 15 + 90) % 360;
@@ -182,6 +191,7 @@
                     }
                 }
                 populateRouteSelect();
+                setCurrentTime();
             })
             .catch(error => {
                 console.error('Error:', error);
@@ -198,45 +208,53 @@
             });
         }
 
+        function setCurrentTime() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById('timeInput').value = `${hours}:${minutes}`;
+        }
+
         document.getElementById('routeSelect').addEventListener('change', function() {
-            const runSelect = document.getElementById('runSelect');
-            runSelect.innerHTML = '<option value="">Select a route</option>';
-            runSelect.style.display = 'block';
+            resetApp();
+            if (this.value) {
+                const runSelect = document.getElementById('runSelect');
+                runSelect.innerHTML = '<option value="">Select a route</option>';
+                runSelect.style.display = 'block';
 
-            const route = busRoutes[this.value];
-            Object.keys(route).forEach(run => {
-                const option = document.createElement('option');
-                option.value = run;
-                option.textContent = `${route[run].direction} (Run ${run})`;
-                runSelect.appendChild(option);
-            });
-
-            document.getElementById('startStop').style.display = 'none';
-            document.getElementById('endStop').style.display = 'none';
-            document.querySelector('button').style.display = 'none';
+                const route = busRoutes[this.value];
+                Object.keys(route).forEach(run => {
+                    const option = document.createElement('option');
+                    option.value = run;
+                    option.textContent = `${route[run].direction} (Run ${run})`;
+                    runSelect.appendChild(option);
+                });
+            }
         });
 
         document.getElementById('runSelect').addEventListener('change', function() {
-            const route = document.getElementById('routeSelect').value;
-            const run = this.value;
-            const stops = busRoutes[route][run] || [];
+            if (this.value) {
+                const route = document.getElementById('routeSelect').value;
+                const run = this.value;
+                const stops = busRoutes[route][run] || [];
 
-            const startSelect = document.getElementById('startStop');
-            const endSelect = document.getElementById('endStop');
-            startSelect.innerHTML = '<option value="">Select start stop</option>';
-            endSelect.innerHTML = '<option value="">Select end stop</option>';
+                const startSelect = document.getElementById('startStop');
+                const endSelect = document.getElementById('endStop');
+                startSelect.innerHTML = '<option value="">Select start stop</option>';
+                endSelect.innerHTML = '<option value="">Select end stop</option>';
 
-            stops.forEach((stop, index) => {
-                const option = document.createElement('option');
-                option.value = index;
-                option.textContent = `${stop.sequence}. ${stop.name}`;
-                startSelect.appendChild(option.cloneNode(true));
-                endSelect.appendChild(option);
-            });
+                stops.forEach((stop, index) => {
+                    const option = document.createElement('option');
+                    option.value = index;
+                    option.textContent = `${stop.sequence}. ${stop.name}`;
+                    startSelect.appendChild(option.cloneNode(true));
+                    endSelect.appendChild(option);
+                });
 
-            startSelect.style.display = 'block';
-            endSelect.style.display = 'block';
-            document.querySelector('button').style.display = 'block';
+                startSelect.style.display = 'block';
+                endSelect.style.display = 'block';
+                document.querySelector('button').style.display = 'block';
+            }
         });
 
         function calculateShade() {
@@ -244,9 +262,10 @@
             const run = document.getElementById('runSelect').value;
             const startIndex = document.getElementById('startStop').value;
             const endIndex = document.getElementById('endStop').value;
+            const time = document.getElementById('timeInput').value;
 
-            if (!route || !run || startIndex === '' || endIndex === '') {
-                alert('Please select a route, run, and both stops.');
+            if (!route || !run || startIndex === '' || endIndex === '' || !time) {
+                alert('Please select a route, run, both stops, and a time.');
                 return;
             }
 
@@ -256,9 +275,7 @@
             const bearing = calculateBearing(startStop.easting, startStop.northing, endStop.easting, endStop.northing);
             const compassDirection = getCompassDirection(bearing);
 
-            // Calculate sun position based on current time
-            const currentTime = new Date();
-            const sunPosition = calculateSunPosition(currentTime);
+            const sunPosition = calculateSunPosition(time);
 
             const shadySide = getShadySide(bearing, sunPosition);
 
@@ -269,6 +286,19 @@
             document.getElementById('result').textContent = resultText;
             document.getElementById('direction').textContent = `The bus is traveling in a ${compassDirection} direction (bearing: ${bearing.toFixed(2)}°).`;
             document.getElementById('sunPosition').textContent = `Approximate sun position: ${sunPosition.toFixed(2)}°`;
+            document.getElementById('resetButton').style.display = 'block';
+        }
+
+        function resetApp() {
+            document.getElementById('runSelect').style.display = 'none';
+            document.getElementById('startStop').style.display = 'none';
+            document.getElementById('endStop').style.display = 'none';
+            document.querySelector('button').style.display = 'none';
+            document.getElementById('resetButton').style.display = 'none';
+            document.getElementById('result').textContent = '';
+            document.getElementById('direction').textContent = '';
+            document.getElementById('sunPosition').textContent = '';
+            setCurrentTime();
         }
     </script>
 </body>
