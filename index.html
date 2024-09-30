@@ -119,14 +119,22 @@
         <div class="input-row">
             <button onclick="resetApp()" id="resetButton" style="display: none;">Check a new ride</button>
         </div>
-        
-        <p id="result"></p>
-        <p id="direction"></p>
-        <p id="sunPosition"></p>
-        <p id="error"></p>
+ 
+        <div id="map" style="height: 400px; width: 100%; margin-top: 20px;"></div>
+    
+            <p id="result"></p>
+            <p id="direction"></p>
+            <p id="sunPosition"></p>
+            <p id="error"></p>
+
     </div>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCPb5lUVJhcQk5ghBUPwY1CjwAs0G6Pr3Q&libraries=routes"></script>
+
     <script>
         let busRoutes = {};
+        let map;
+        let directionsService;
+        let directionsRenderer;
 
         function calculateBearing(startEasting, startNorthing, endEasting, endNorthing) {
             const y = endEasting - startEasting;
@@ -150,6 +158,32 @@
             }
         }
 
+        function initMap() {
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 51.5074, lng: -0.1278 }, // London center
+                zoom: 12
+            });
+            directionsService = new google.maps.DirectionsService();
+            directionsRenderer = new google.maps.DirectionsRenderer();
+            directionsRenderer.setMap(map);
+}
+        function displayRoute(startStop, endStop) {
+            const request = {
+                origin: `${startStop.name}, London`,
+                destination: `${endStop.name}, London`,
+                travelMode: 'TRANSIT',
+                transitOptions: {
+                    modes: ['BUS']
+        }
+    };
+     directionsService.route(request, function(result, status) {
+        if (status === 'OK') {
+            directionsRenderer.setDirections(result);
+        } else {
+            console.error('Directions request failed due to ' + status);
+        }
+    });
+}
         function calculateSunPosition(time) {
             // Approximate sun position based on time of day
             // Assuming sun rises at 6 AM (90°) and sets at 6 PM (270°)
@@ -296,6 +330,9 @@ function calculateShade() {
     const startStop = busRoutes[route][run][startIndex];
     const endStop = busRoutes[route][run][endIndex];
 
+    // Display the route on the map
+    displayRoute(startStop, endStop);
+
     const bearing = calculateBearing(startStop.easting, startStop.northing, endStop.easting, endStop.northing);
     const compassDirection = getCompassDirection(bearing);
 
@@ -331,6 +368,9 @@ function calculateShade() {
             document.getElementById('sunPosition').textContent = '';
             setCurrentTime();
         }
+
+        google.maps.event.addDomListener(window, 'load', initMap);
+
     </script>
 </body>
 </html>
