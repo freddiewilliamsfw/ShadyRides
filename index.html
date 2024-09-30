@@ -225,7 +225,7 @@
             }
         }
 
-        window.initMap = function() {
+window.initMap = function() {
     map = new google.maps.Map(document.getElementById('map'), {
         center: { lat: 51.5074, lng: -0.1278 }, // London center
         zoom: 12,
@@ -241,6 +241,8 @@
         map: map,
         suppressMarkers: true // This removes the default A and B markers
     });
+
+}
 
         loadGoogleMapsAPI();
 
