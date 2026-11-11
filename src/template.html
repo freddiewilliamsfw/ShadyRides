@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shady Side of the Bus</title>
+<meta name="description" content="Pick a London bus journey and a time, and see which side of the bus stays out of the sun.">
+<meta property="og:title" content="Shady Side of the Bus">
+<meta property="og:description" content="Which side of a London bus stays out of the sun, for any route, stops and time of day.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hammersmith+One&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: a bus stop timetable panel. The destination blind carries the answer; everything under it is evidence. */
+:root {
+  --bg: #EAEFF3;          /* overcast London sky */
+  --surface: #FFFFFF;
+  --ink: #15202B;
+  --muted: #566573;
+  --line: #D3DBE2;
+  --red: #D3241C;         /* bus red: the bus itself, journey ends, active controls */
+  --sun: #F2A900;         /* sunlit */
+  --sun-soft: #FFEDB8;
+  --shade: #2F5D8A;       /* in shade */
+  --shade-soft: #D8E5F1;
+  --blind: #0F1215;
+  --blind-ink: #FFE9A3;
+  --display: "Hammersmith One", "Gill Sans", "Gill Sans MT", "Trebuchet MS", sans-serif;
+  --body: "Hanken Grotesk", "Segoe UI", system-ui, -apple-system, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0C131A; --surface: #151E27; --ink: #E8EDF2; --muted: #94A3B1; --line: #2A3642;
+    --red: #F2473E; --sun: #FFC533; --sun-soft: #4B3C12; --shade: #7CAEDF; --shade-soft: #1D3146;
+    --blind: #05070A; --blind-ink: #FFE9A3;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0C131A; --surface: #151E27; --ink: #E8EDF2; --muted: #94A3B1; --line: #2A3642;
+  --red: #F2473E; --sun: #FFC533; --sun-soft: #4B3C12; --shade: #7CAEDF; --shade-soft: #1D3146;
+  --blind: #05070A; --blind-ink: #FFE9A3;
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 400 16px/1.45 var(--body); -webkit-text-size-adjust: 100%; }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 20px 16px 40px; display: grid; gap: 20px; }
+header.top { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.mark { font: 400 28px/1 var(--display); letter-spacing: .01em; margin: 0; }
+.mark b { font-weight: 400; color: var(--red); }
+.strap { margin: 0; color: var(--muted); font-size: 15px; }
+h2 { font: 400 19px/1.2 var(--display); margin: 0; text-wrap: balance; }
+.sub { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+.cols { display: grid; gap: 20px; }
+.stack { display: grid; gap: 20px; align-content: start; min-width: 0; }
+@media (min-width: 920px) {
+  .cols { grid-template-columns: 380px minmax(0, 1fr); align-items: start; }
+}
+@media (min-width: 920px) and (min-height: 840px) { .stack.left { position: sticky; top: 16px; } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 14px; min-width: 0; }
+
+/* planner */
+.field { display: grid; gap: 6px; min-width: 0; }
+.field > label, .field > .label, .labrow label { font-size: 13px; font-weight: 600; color: var(--muted); }
+.labrow { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.link { background: none; border: 0; padding: 4px 6px; margin: -4px -6px; color: var(--red); font-size: 13px; font-weight: 700; text-decoration: underline; cursor: pointer; }
+.row.routerow { grid-template-columns: 92px minmax(0, 1fr); align-items: start; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.row.when { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); align-items: end; }
+input, select, button { font: inherit; color: inherit; }
+input[type="text"], input[type="date"], input[type="time"], select {
+  width: 100%; min-width: 0; height: 44px; padding: 0 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+}
+select { text-overflow: ellipsis; }
+#f-route { font: 400 22px/1 var(--display); text-transform: uppercase; }
+:is(input, select, button):focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.seg.single { grid-template-columns: 1fr; }
+.seg button { min-height: 44px; padding: 8px 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; cursor: pointer; text-align: left; line-height: 1.2; font-size: 14px; overflow-wrap: anywhere; }
+.seg button small { display: block; color: var(--muted); font-size: 12px; }
+.seg button[aria-pressed="true"] { background: var(--red); border-color: var(--red); color: #fff; }
+.seg button[aria-pressed="true"] small { color: rgba(255,255,255,.82); }
+.err { margin: 0; color: var(--red); font-size: 14px; font-weight: 600; }
+.err:empty { display: none; }
+
+/* the blind */
+.blind { background: var(--blind); color: var(--blind-ink); border-radius: 10px; padding: 18px 18px 16px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 16px; align-items: center; border: 3px solid #2B3036; }
+.blind .num { grid-row: span 2; font: 400 clamp(40px, 13vw, 58px)/1 var(--display); padding-right: 16px; border-right: 2px solid rgba(255,233,163,.28); }
+.blind .say { font: 400 clamp(26px, 8vw, 36px)/1.05 var(--display); margin: 0; text-wrap: balance; }
+.blind .via { margin: 0; font-size: 15px; line-height: 1.3; color: #F3E3B0; }
+.blind .foot { grid-column: 1 / -1; margin: 10px 0 0; padding-top: 10px; border-top: 1px solid rgba(255,233,163,.22); font-size: 13.5px; color: #D9CFAE; font-variant-numeric: tabular-nums; }
+
+/* left / right split */
+.split { display: grid; gap: 8px; }
+.splitbar { display: flex; height: 16px; border-radius: 4px; overflow: hidden; background: var(--line); }
+.splitbar i { display: block; height: 100%; }
+.splitbar .l, .splitbar .r { background: var(--sun); }
+.splitbar .mid { background: var(--line); }
+.splitlabels { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.splitlabels b { color: var(--ink); font-weight: 700; }
+.splitlabels span:nth-child(2) { text-align: center; } .splitlabels span:last-child { text-align: right; }
+
+/* figures */
+.figure svg { display: block; width: 100%; height: auto; }
+.cap { margin: 0; font-size: 14.5px; }
+.cap b { font-weight: 700; }
+.scrub { display: grid; gap: 6px; }
+.scrub label { font-size: 13px; font-weight: 600; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; font-variant-numeric: tabular-nums; }
+input[type="range"] { width: 100%; height: 32px; margin: 0; accent-color: var(--red); background: transparent; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--muted); margin: 0; padding: 0; list-style: none; }
+.legend i { display: inline-block; width: 18px; height: 5px; border-radius: 3px; margin-right: 6px; vertical-align: middle; }
+.duo { display: grid; gap: 20px; }
+@media (min-width: 620px) { .duo { grid-template-columns: 1fr 1fr; } }
+
+/* svg tokens */
+.t-ink { fill: var(--ink); } .t-muted { fill: var(--muted); } .t-small { font: 500 11px var(--body); } .t-tiny { font: 500 10px var(--body); }
+.t-label { font: 600 12px var(--body); } .halo { paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; }
+.s-line { stroke: var(--line); } .s-muted { stroke: var(--muted); } .f-surface { fill: var(--surface); } .f-bg { fill: var(--bg); }
+.f-red { fill: var(--red); } .s-red { stroke: var(--red); } .f-sun { fill: var(--sun); } .s-sun { stroke: var(--sun); }
+.f-shade { fill: var(--shade); } .s-shade { stroke: var(--shade); } .f-sunsoft { fill: var(--sun-soft); } .f-shadesoft { fill: var(--shade-soft); }
+.f-ink { fill: var(--ink); } .s-ink { stroke: var(--ink); } .f-line { fill: var(--line); } .f-muted { fill: var(--muted); }
+
+/* stretches */
+.stretches { list-style: none; margin: 0; padding: 0; display: grid; }
+.stretches li { display: grid; grid-template-columns: 5px minmax(0, 1fr) auto; gap: 4px 12px; padding: 10px 0; border-top: 1px solid var(--line); align-items: center; }
+.stretches li:first-child { border-top: 0; padding-top: 0; }
+.stretches .stripe { grid-row: span 2; align-self: stretch; border-radius: 3px; background: var(--line); }
+.stretches .stripe.sun { background: var(--sun); } .stretches .stripe.shade { background: var(--shade); }
+.stretches .where { font-weight: 600; font-size: 15px; overflow-wrap: anywhere; }
+.stretches .when { grid-column: 2; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.chip { grid-row: span 2; display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; white-space: nowrap; background: var(--bg); border: 1px solid var(--line); }
+.chip::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
+.chip.sun { background: var(--sun-soft); border-color: var(--sun); } .chip.sun::before { background: var(--sun); }
+.chip.shade { background: var(--shade-soft); border-color: var(--shade); } .chip.shade::before { background: var(--shade); }
+
+/* other departure times */
+.times { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; align-items: center; font-size: 13px; }
+.times .lab { color: var(--muted); font-weight: 600; }
+.lane { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 2px; }
+.lane button { height: 28px; padding: 0; border: 0; border-radius: 3px; background: var(--bg); cursor: pointer; min-width: 0; }
+.lane button.on { background: var(--shade); }
+.lane button.half { background: repeating-linear-gradient(135deg, var(--shade) 0 3px, var(--bg) 3px 6px); }
+.lane button.now { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--red); position: relative; z-index: 1; }
+.hours { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 2px; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.hours span { white-space: nowrap; overflow: visible; }
+
+footer.notes { color: var(--muted); font-size: 13px; display: grid; gap: 6px; max-width: 70ch; }
+footer.notes p { margin: 0; }
+footer.notes a { color: inherit; }
+@media (prefers-reduced-motion: no-preference) { .movable { transition: transform .18s ease-out; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1 class="mark">Shady <b>Side</b></h1>
+    <p class="strap">Which side of a London bus stays out of the sun.</p>
+  </header>
+
+  <div class="cols">
+    <div class="stack left">
+      <form class="panel" id="planner" autocomplete="off">
+        <div class="row routerow">
+          <div class="field">
+            <label for="f-route">Route</label>
+            <input type="text" id="f-route" list="route-list" inputmode="text" autocapitalize="characters" spellcheck="false" maxlength="5" aria-describedby="f-err">
+            <datalist id="route-list"></datalist>
+          </div>
+          <div class="field">
+            <span class="label" id="dir-label">Direction</span>
+            <div class="seg" id="f-dir" role="group" aria-labelledby="dir-label"></div>
+          </div>
+        </div>
+        <p class="err" id="f-err" role="alert"></p>
+        <div class="field"><label for="f-from">Get on at</label><select id="f-from"></select></div>
+        <div class="field"><label for="f-to">Get off at</label><select id="f-to"></select></div>
+        <div class="row when">
+          <div class="field"><label for="f-date">Date</label><input type="date" id="f-date"></div>
+          <div class="field"><div class="labrow"><label for="f-time">Leaving at</label><button type="button" class="link" id="f-now">Now</button></div><input type="time" id="f-time"></div>
+        </div>
+      </form>
+
+      <section class="blind" aria-live="polite" aria-label="Recommendation">
+        <div class="num" id="b-num"></div>
+        <p class="say" id="b-say"></p>
+        <p class="via" id="b-via"></p>
+        <p class="foot" id="b-foot"></p>
+      </section>
+
+      <section class="panel split" aria-label="Share of the ride with the sun on each side">
+        <div class="splitbar" id="s-bar" role="img"></div>
+        <div class="splitlabels" id="s-labels"></div>
+      </section>
+    </div>
+
+    <div class="stack">
+      <section class="panel">
+        <div><h2>Where the sun sits</h2><p class="sub">Looking down on the bus. Drag the slider to ride along.</p></div>
+        <div class="scrub">
+          <label for="f-scrub"><span id="scrub-where"></span><span id="scrub-when"></span></label>
+          <input type="range" id="f-scrub" min="0" max="1000" value="0" step="1">
+        </div>
+        <div class="duo">
+          <div class="figure" id="fig-bus"></div>
+          <div class="figure" id="fig-map"></div>
+        </div>
+        <p class="cap" id="cap-live"></p>
+        <ul class="legend" id="map-legend"></ul>
+      </section>
+
+      <section class="panel">
+        <div><h2>Stretch by stretch</h2><p class="sub" id="st-sub"></p></div>
+        <ol class="stretches" id="st-list"></ol>
+      </section>
+
+      <section class="panel">
+        <div><h2>How high the sun is</h2><p class="sub" id="sky-sub"></p></div>
+        <div class="figure" id="fig-sky"></div>
+      </section>
+
+      <section class="panel">
+        <div><h2>Leaving at a different time</h2><p class="sub">The same journey through the day. A filled block marks the shadier side. Tap one to switch to that time.</p></div>
+        <div class="times" id="times"></div>
+      </section>
+    </div>
+  </div>
+
+  <footer class="notes">
+    <p>Assumes a clear sky and open streets. Tall buildings and trees block a low sun, so on narrow streets you may get shade on both sides. Timings use the London average of about 9 mph, so the sun can shift a little if your bus is quicker or slower.</p>
+    <p id="data-note"></p>
+  </footer>
+</div>
+
+<script id="bus-data" type="application/json">/*DATA*/</script>
+<script>
+/*CORE*/
+/*UI*/
+</script>
+</body>
+</html>
